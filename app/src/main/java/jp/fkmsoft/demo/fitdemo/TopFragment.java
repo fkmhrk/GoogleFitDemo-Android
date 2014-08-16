@@ -53,7 +53,11 @@ import java.util.concurrent.TimeUnit;
 public class TopFragment extends Fragment implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
     private static final int REQUEST_OAUTH = 1000;
     private static final int REQUEST_LIST_DATASOURCES = 1001;
-    private static final int REQUEST_START_SESSION = 1002;
+    private static final int REQUEST_SUBSCRIBE = 1002;
+    private static final int REQUEST_LIST_SUBSCRIPTION = 1003;
+    private static final int REQUEST_UNSUBSCRIBE = 1004;
+    private static final int REQUEST_START_SESSION = 1005;
+    private static final int REQUEST_READ_DATA = 1006;
 
     private static final int[] BUTTON_IDS = {
             R.id.button_sensor_api, R.id.button_register_listener, R.id.button_unregister_listener,
@@ -160,19 +164,19 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
                 unregisterListener(mFoundDataSources.mDataSourceListener);
                 break;
             case R.id.button_subscribe:
-                subscribe();
+                showSelectDataTypeDialog(REQUEST_SUBSCRIBE);
                 break;
             case R.id.button_list_subscribe:
-                listSubscription();
+                showSelectDataTypeDialog(REQUEST_LIST_SUBSCRIPTION);
                 break;
             case R.id.button_unsubscribe:
-                unsubscribe();
+                showSelectDataTypeDialog(REQUEST_UNSUBSCRIBE);
                 break;
             case R.id.button_start_session:
                 showStartSessionDialog();
                 break;
             case R.id.button_read_data:
-                readData();
+                showSelectDataTypeDialog(REQUEST_READ_DATA);
                 break;
             case R.id.button_insert_data:
                 insertData();
@@ -293,13 +297,18 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         });
     }
 
-    private void subscribe() {
+    private void showSelectDataTypeDialog(int requestCode) {
+        DataTypeDialogFragment dialog = DataTypeDialogFragment.newInstance(this, requestCode);
+        dialog.show(getFragmentManager(), null);
+    }
+
+    private void subscribe(final DataType dataType) {
         new AsyncTask<Void, Void, Status>() {
 
             @Override
             protected com.google.android.gms.common.api.Status doInBackground(Void... voids) {
                 PendingResult<com.google.android.gms.common.api.Status> pendingResult =
-                        Fitness.RecordingApi.subscribe(mApiClient, DataTypes.ACTIVITY_SAMPLE);
+                        Fitness.RecordingApi.subscribe(mApiClient, dataType);
 
                 // 2. Retrieve the result synchronously
                 // (For the subscribe method, this call returns immediately)
@@ -310,21 +319,21 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
             protected void onPostExecute(com.google.android.gms.common.api.Status status) {
                 super.onPostExecute(status);
                 if (status.isSuccess()) {
-                    addMessage("Successfully subscribed!");
+                    addMessage("Subscribed " + dataType.getName());
                 } else {
-                    addMessage("There was a problem subscribing.");
+                    addMessage("Failed to subscribe " + dataType.getName());
                 }
             }
         }.execute();
     }
 
-    private void listSubscription() {
+    private void listSubscription(final DataType dataType) {
         new AsyncTask<Void, Void, ListSubscriptionsResult>() {
 
             @Override
             protected ListSubscriptionsResult doInBackground(Void... voids) {
                 PendingResult<ListSubscriptionsResult> pendingResult =
-                        Fitness.RecordingApi.listSubscriptions(mApiClient, DataTypes.ACTIVITY_SAMPLE);
+                        Fitness.RecordingApi.listSubscriptions(mApiClient, dataType);
 
                 // 2. Retrieve the list of subscriptions synchronously
                 // (For the listSubscriptions method, this call returns immediately)
@@ -335,7 +344,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
             protected void onPostExecute(ListSubscriptionsResult listResult) {
                 super.onPostExecute(listResult);
                 List<Subscription> subscriptions = listResult.getSubscriptions();
-                addMessage("count of subscriptions : " + subscriptions.size());
+                addMessage("count of subscriptions(" + dataType.getName() + ") : " + subscriptions.size());
                 for (Subscription sc : subscriptions) {
                     // Get information about each subscription
                     DataType dt = sc.getDataType();
@@ -345,13 +354,13 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         }.execute();
     }
 
-    private void unsubscribe() {
+    private void unsubscribe(final DataType dataType) {
         new AsyncTask<Void, Void, Status>() {
 
             @Override
             protected com.google.android.gms.common.api.Status doInBackground(Void... voids) {
                 PendingResult<com.google.android.gms.common.api.Status> pendingResult =
-                        Fitness.RecordingApi.unsubscribe(mApiClient, DataTypes.ACTIVITY_SAMPLE);
+                        Fitness.RecordingApi.unsubscribe(mApiClient, dataType);
 
                 // 2. Retrieve the result of the request synchronously
                 // (For the unsubscribe method, this call returns immediately)
@@ -362,9 +371,9 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
             protected void onPostExecute(com.google.android.gms.common.api.Status status) {
                 super.onPostExecute(status);
                 if (status.isSuccess()) {
-                    addMessage("Subscription removed successfully.");
+                    addMessage("Unsubscribed " + dataType.getName());
                 } else {
-                    addMessage("Subscription not removed.");
+                    addMessage("Failed to unsubscribe " + dataType.getName());
                 }
             }
         }.execute();
@@ -412,7 +421,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         }.execute();
     }
 
-    private void readData() {
+    private void readData(final DataType dataType) {
         // 1. Obtain start and end times
         // (In this example, the start time is one week before this moment)
         long WEEK_IN_MS = 1000 * 60 * 60 * 24 * 7;
@@ -423,7 +432,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         // 2. Create a data request specifying data types and a time range
         // (In this example, group the data to find how many steps were walked per day)
         DataReadRequest readreq = new DataReadRequest.Builder()
-                .addAggregatedDefaultDataSource(DataTypes.STEP_COUNT_DELTA)
+                .addAggregatedDefaultDataSource(dataType)
                 .bucketByTime(1, TimeUnit.DAYS)
                 .setTimeRange(startTime, endTime)
                 .build();
@@ -487,7 +496,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         // 1. Create a data source
         DataSource dsApp = new DataSource.Builder()
                 .setAppPackageName(activity)
-                .setDataType(DataTypes.STEP_COUNT_DELTA)
+                .setDataType(DataTypes.STEP_COUNT_CUMULATIVE)
                 .setName("myapp-stepcount")
                 .setType(DataSource.TYPE_RAW)
                 .build();
@@ -535,23 +544,36 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode != Activity.RESULT_OK) { return; }
+
         switch (requestCode) {
         case REQUEST_OAUTH:
-            if (resultCode != Activity.RESULT_OK) { return; }
-
             mApiClient.connect();
             return;
-        case REQUEST_LIST_DATASOURCES:
-            if (resultCode != Activity.RESULT_OK) { return; }
-
+        case REQUEST_LIST_DATASOURCES: {
             int dataSourceType = data.getIntExtra(ListDataSourcesDialogFragment.EXTRA_DATASOURCE_TYPE, 0);
             int dataType = data.getIntExtra(ListDataSourcesDialogFragment.EXTRA_DATA_TYPE, 0);
 
             getDataSources(toDataSourceType(dataSourceType), toDataType(dataType));
 
             return;
+        }
+        case REQUEST_SUBSCRIBE: {
+            int dataType = data.getIntExtra(DataTypeDialogFragment.EXTRA_DATA_TYPE, 0);
+            subscribe(toDataType(dataType));
+            return;
+        }
+        case REQUEST_LIST_SUBSCRIPTION: {
+            int dataType = data.getIntExtra(DataTypeDialogFragment.EXTRA_DATA_TYPE, 0);
+            listSubscription(toDataType(dataType));
+            return;
+        }
+        case REQUEST_UNSUBSCRIBE: {
+            int dataType = data.getIntExtra(DataTypeDialogFragment.EXTRA_DATA_TYPE, 0);
+            unsubscribe(toDataType(dataType));
+            return;
+        }
         case REQUEST_START_SESSION:
-            if (resultCode != Activity.RESULT_OK) { return; }
 
             String name = data.getStringExtra(StartSessionDialog.EXTRA_NAME);
             String identifier = data.getStringExtra(StartSessionDialog.EXTRA_IDENTIFIER);
@@ -559,7 +581,13 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
 
             startSession(name, identifier, description);
             return;
+        case REQUEST_READ_DATA: {
+            int dataType = data.getIntExtra(DataTypeDialogFragment.EXTRA_DATA_TYPE, 0);
+            readData(toDataType(dataType));
+            return;
         }
+        }
+
         super.onActivityResult(requestCode, resultCode, data);
 
     }
