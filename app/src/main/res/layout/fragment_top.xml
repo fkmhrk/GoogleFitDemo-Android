@@ -39,6 +39,20 @@
                 android:enabled="false"
                 />
             <Button
+                android:id="@+id/button_register_listener"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/register_listener"
+                android:enabled="false"
+                />
+            <Button
+                android:id="@+id/button_unregister_listener"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/unregister_listener"
+                android:enabled="false"
+                />
+            <Button
                 android:id="@+id/button_subscribe"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

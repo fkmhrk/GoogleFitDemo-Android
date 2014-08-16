@@ -26,6 +26,7 @@ import com.google.android.gms.fitness.DataReadRequest;
 import com.google.android.gms.fitness.DataReadResult;
 import com.google.android.gms.fitness.DataSet;
 import com.google.android.gms.fitness.DataSource;
+import com.google.android.gms.fitness.DataSourceListener;
 import com.google.android.gms.fitness.DataSourcesRequest;
 import com.google.android.gms.fitness.DataSourcesResult;
 import com.google.android.gms.fitness.DataType;
@@ -36,8 +37,10 @@ import com.google.android.gms.fitness.FitnessActivities;
 import com.google.android.gms.fitness.FitnessScopes;
 import com.google.android.gms.fitness.FitnessStatusCodes;
 import com.google.android.gms.fitness.ListSubscriptionsResult;
+import com.google.android.gms.fitness.SensorRequest;
 import com.google.android.gms.fitness.Session;
 import com.google.android.gms.fitness.Subscription;
+import com.google.android.gms.fitness.Value;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -53,7 +56,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     private static final int REQUEST_START_SESSION = 1002;
 
     private static final int[] BUTTON_IDS = {
-            R.id.button_sensor_api,
+            R.id.button_sensor_api, R.id.button_register_listener, R.id.button_unregister_listener,
             R.id.button_subscribe, R.id.button_list_subscribe, R.id.button_unsubscribe, R.id.button_start_session,
             R.id.button_read_data, R.id.button_insert_data};
 
@@ -70,7 +73,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     private GoogleApiClient mApiClient = null;
     private TextView mMessageText = null;
 
-    private List<DataSource> mDataSources;
+    private FoundDataSources mFoundDataSources = new FoundDataSources();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -150,6 +153,12 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
             case R.id.button_sensor_api:
                 showListDataSourcesDialog();
                 break;
+            case R.id.button_register_listener:
+                registerListener();
+                break;
+            case R.id.button_unregister_listener:
+                unregisterListener(mFoundDataSources.mDataSourceListener);
+                break;
             case R.id.button_subscribe:
                 subscribe();
                 break;
@@ -177,7 +186,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         dialog.show(getFragmentManager(), null);
     }
 
-    private void getDataSources(int dataSourceType, DataType dataType) {
+    private void getDataSources(final int dataSourceType, final DataType dataType) {
         DataSourcesRequest req = new DataSourcesRequest.Builder()
                 .setDataSourceTypes(dataSourceType)
                 .setDataTypes(dataType)
@@ -195,12 +204,90 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         pendingResult.setResultCallback(new ResultCallback<DataSourcesResult>() {
             @Override
             public void onResult(DataSourcesResult dataSourcesResult) {
-                mDataSources = dataSourcesResult.getDataSources();
-                addMessage("count of data sources : " + mDataSources.size());
-                for (DataSource ds : mDataSources) {
+                // update FoundDataSources
+                mFoundDataSources.mDataSourceType = dataSourceType;
+                mFoundDataSources.mDataType = dataType;
+                mFoundDataSources.mDataSources = dataSourcesResult.getDataSources();
+                // unregister a listener if necessary
+                unregisterListener(mFoundDataSources.mDataSourceListener);
+                mFoundDataSources.mDataSourceListener = null;
+
+                addMessage("count of data sources : " + mFoundDataSources.mDataSources.size());
+                for (DataSource ds : mFoundDataSources.mDataSources) {
                     String dsName = ds.getName();
                     Device device = ds.getDevice();
                     addMessage("Name:" + dsName + " device=" + device.getUid());
+                }
+            }
+        });
+    }
+
+    private void registerListener() {
+        if (mFoundDataSources.mDataSources == null ||
+            mFoundDataSources.mDataSources.size() == 0) {
+            addMessage("ERROR : no DataSource. Please find data sources.");
+            return;
+        }
+
+        // 1. Create a listener object to be called when new data is available
+        mFoundDataSources.mDataSourceListener = new DataSourceListener() {
+            @Override
+            public void onEvent(DataPoint dataPoint) {
+                for (DataType.Field field : dataPoint.getDataType().getFields()) {
+                    Value val = dataPoint.getValue(field);
+                    addMessage(" value from data source : " + val.asFloat());
+                }
+            }
+        };
+
+        // 2. Build a sensor registration request object
+        SensorRequest req = new SensorRequest.Builder()
+                .setDataType(mFoundDataSources.mDataType)
+                .setDataSource(mFoundDataSources.mDataSources.get(0)) // optional
+                .setSamplingRate(10, TimeUnit.SECONDS)
+                .build();
+
+        // 3. Invoke the Sensors API with:
+        // - The Google API client object
+        // - The sensor registration request object
+        // - The listener object
+        PendingResult<Status> regResult =
+                Fitness.SensorsApi.register(mApiClient, req, mFoundDataSources.mDataSourceListener);
+
+        // 4. Check the result asynchronously
+        regResult.setResultCallback(new ResultCallback<Status>() {
+            @Override
+            public void onResult(Status status) {
+                if (status.isSuccess()) {
+                    // listener registered
+                    addMessage("Listener is registered");
+                } else {
+                    // listener not registered
+                    addMessage("failed to register a listener");
+                }
+            }
+        });
+    }
+
+    private void unregisterListener(DataSourceListener listener) {
+        if (listener == null) { return; }
+        // 1. Invoke the Sensors API with:
+        // - The Google API client object
+        // - The listener object
+        PendingResult<Status> pendingResult =
+                Fitness.SensorsApi.unregister(mApiClient, listener);
+
+
+        // 2. Check the result
+        pendingResult.setResultCallback(new ResultCallback<Status>() {
+            @Override
+            public void onResult(Status status) {
+                if (status.isSuccess()) {
+                    // listener removed
+                    addMessage("Listener is unregistered");
+                } else {
+                    // listener not removed
+                    addMessage("failed to unregister a listener");
                 }
             }
         });
