@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="jp.fkmsoft.demo.fitdemo" >
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme" >
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".SessionReceiver"
+            >
+            <intent-filter>
+                <action android:name="com.google.android.gms.fitness.session_start" />
+                <data android:mimeType="vnd.google.android.fitness.activity_type/8" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.android.gms.fitness.session_end" />
+                <data android:mimeType="vnd.google.android.fitness.activity_type/8" />
+            </intent-filter>
+        </receiver>
+
+        <meta-data android:name="com.google.android.gms.version"
+                   android:value="@integer/google_play_services_version" />
+    </application>
+
+</manifest>
