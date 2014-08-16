@@ -35,7 +35,7 @@
                 android:id="@+id/button_sensor_api"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/sensor_api"
+                android:text="@string/list_datasources"
                 android:enabled="false"
                 />
             <Button

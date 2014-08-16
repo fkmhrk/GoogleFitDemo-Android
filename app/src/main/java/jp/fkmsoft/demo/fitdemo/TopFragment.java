@@ -7,6 +7,9 @@ import android.content.IntentSender;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -67,6 +70,29 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     private GoogleApiClient mApiClient = null;
     private TextView mMessageText = null;
 
+    private List<DataSource> mDataSources;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        Activity activity = getActivity();
+
+        // Create the Google API Client
+        mApiClient = new GoogleApiClient.Builder(activity)
+                // select the Fitness API
+                .addApi(Fitness.API)
+                // specify the scopes of access
+                .addScope(FitnessScopes.SCOPE_ACTIVITY_READ)
+                .addScope(FitnessScopes.SCOPE_BODY_READ_WRITE)
+                // provide callbacks
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+
+        setHasOptionsMenu(true);
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_top, container, false);
@@ -81,37 +107,40 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        if (mApiClient == null || !mApiClient.isConnected()) {
-            connect();
-        }
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        menu.clear();
+        inflater.inflate(R.menu.top, menu);
     }
 
-    private void connect() {
-        Activity activity = getActivity();
-        if (activity == null) { return; }
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+        case R.id.action_clear:
+            clearMessage();
+            break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
-        // Create the Google API Client
-        mApiClient = new GoogleApiClient.Builder(activity)
-                // select the Fitness API
-                .addApi(Fitness.API)
-                // specify the scopes of access
-                .addScope(FitnessScopes.SCOPE_ACTIVITY_READ)
-                .addScope(FitnessScopes.SCOPE_BODY_READ_WRITE)
-                // provide callbacks
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
-
-        // Connect the Google API client
-        mApiClient.connect();
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (!mApiClient.isConnected()) {
+            mApiClient.connect();
+        }
     }
 
     private void addMessage(String message) {
         TextView messageText = mMessageText;
         if (messageText == null) { return; }
         messageText.setText(messageText.getText().toString() + message + "\n");
+    }
+
+    private void clearMessage() {
+        TextView messageText = mMessageText;
+        if (messageText == null) { return; }
+        messageText.setText("");
     }
 
     private final View.OnClickListener mClickListener = new View.OnClickListener() {
@@ -166,9 +195,9 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         pendingResult.setResultCallback(new ResultCallback<DataSourcesResult>() {
             @Override
             public void onResult(DataSourcesResult dataSourcesResult) {
-                List<DataSource> dataSources = dataSourcesResult.getDataSources();
-                addMessage("count of data sources : " + dataSources.size());
-                for (DataSource ds : dataSources) {
+                mDataSources = dataSourcesResult.getDataSources();
+                addMessage("count of data sources : " + mDataSources.size());
+                for (DataSource ds : mDataSources) {
                     String dsName = ds.getName();
                     Device device = ds.getDevice();
                     addMessage("Name:" + dsName + " device=" + device.getUid());
