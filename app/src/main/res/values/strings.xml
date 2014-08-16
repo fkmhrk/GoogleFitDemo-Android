@@ -14,5 +14,35 @@
     <string name="description">Description</string>
     <string name="read_data">Read data</string>
     <string name="insert_data">Insert data</string>
+    <string name="datasource_type">DataSource Type</string>
+    <string name="raw">Raw</string>
+    <string name="derived">Derived</string>
+    <string name="data_type">Data Type</string>
 
+    <string-array name="data_type_array">
+        <item>ACTIVITY_EDGE</item>
+        <item>ACTIVITY_SAMPLE</item>
+        <item>ACTIVITY_SEGMENT</item>
+        <item>ACTIVITY_SUMMARY</item>
+        <item>CALORIES_EXPENDED</item>
+        <item>CYCLING_PEDALING_CADENCE</item>
+        <item>CYCLING_PEDALING_CUMULATIVE</item>
+        <item>CYCLING_WHEEL_REVOLUTION</item>
+        <item>CYCLING_WHEEL_RPM</item>
+        <item>DISTANCE_CUMULATIVE</item>
+        <item>DISTANCE_DELTA</item>
+        <item>HEART_RATE_BPM</item>
+        <item>HEART_RATE_SUMMARY</item>
+        <item>HEIGHT</item>
+        <item>LOCATION</item>
+        <item>LOCATION_BOUNDING_BOX</item>
+        <item>POWER_SAMPLE</item>
+        <item>SPEED</item>
+        <item>SPEED_SUMMARY</item>
+        <item>STEP_COUNT_CADENCE</item>
+        <item>STEP_COUNT_CUMULATIVE</item>
+        <item>STEP_COUNT_DELTA</item>
+        <item>WEIGHT</item>
+        <item>WEIGHT_SUMMARY</item>
+    </string-array>
 </resources>

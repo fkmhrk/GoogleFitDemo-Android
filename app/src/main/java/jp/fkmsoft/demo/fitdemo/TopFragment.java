@@ -46,11 +46,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class TopFragment extends Fragment implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
     private static final int REQUEST_OAUTH = 1000;
-    private static final int REQUEST_START_SESSION = 1001;
+    private static final int REQUEST_LIST_DATASOURCES = 1001;
+    private static final int REQUEST_START_SESSION = 1002;
+
     private static final int[] BUTTON_IDS = {
             R.id.button_sensor_api,
             R.id.button_subscribe, R.id.button_list_subscribe, R.id.button_unsubscribe, R.id.button_start_session,
             R.id.button_read_data, R.id.button_insert_data};
+
 
     public static TopFragment newInstance() {
         TopFragment fragment = new TopFragment();
@@ -93,10 +96,10 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         mApiClient = new GoogleApiClient.Builder(activity)
                 // select the Fitness API
                 .addApi(Fitness.API)
-                        // specify the scopes of access
+                // specify the scopes of access
                 .addScope(FitnessScopes.SCOPE_ACTIVITY_READ)
                 .addScope(FitnessScopes.SCOPE_BODY_READ_WRITE)
-                        // provide callbacks
+                // provide callbacks
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
@@ -116,7 +119,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         public void onClick(View v) {
             switch (v.getId()) {
             case R.id.button_sensor_api:
-                getDataSources();
+                showListDataSourcesDialog();
                 break;
             case R.id.button_subscribe:
                 subscribe();
@@ -140,12 +143,16 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         }
     };
 
-    private void getDataSources() {
-        DataSourcesRequest req = new DataSourcesRequest.Builder()
-                .setDataSourceTypes(DataSource.TYPE_RAW)
-                .setDataTypes(DataTypes.STEP_COUNT_CUMULATIVE)
-                .build();
+    private void showListDataSourcesDialog() {
+        ListDataSourcesDialogFragment dialog = ListDataSourcesDialogFragment.newInstance(this, REQUEST_LIST_DATASOURCES);
+        dialog.show(getFragmentManager(), null);
+    }
 
+    private void getDataSources(int dataSourceType, DataType dataType) {
+        DataSourcesRequest req = new DataSourcesRequest.Builder()
+                .setDataSourceTypes(dataSourceType)
+                .setDataTypes(dataType)
+                .build();
         // 2. Invoke the Sensors API with:
         // - The Google API client object
         // - The data sources request object
@@ -153,6 +160,8 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
                 Fitness.SensorsApi.findDataSources(mApiClient, req);
 
         addMessage("getting available data sources");
+        addMessage("\tDataSource Type : " + dataSourceType);
+        addMessage("\tData Type : " + dataType.getName());
         // 3. Obtain the list of data sources asynchronously
         pendingResult.setResultCallback(new ResultCallback<DataSourcesResult>() {
             @Override
@@ -416,6 +425,15 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
 
             mApiClient.connect();
             return;
+        case REQUEST_LIST_DATASOURCES:
+            if (resultCode != Activity.RESULT_OK) { return; }
+
+            int dataSourceType = data.getIntExtra(ListDataSourcesDialogFragment.EXTRA_DATASOURCE_TYPE, 0);
+            int dataType = data.getIntExtra(ListDataSourcesDialogFragment.EXTRA_DATA_TYPE, 0);
+
+            getDataSources(toDataSourceType(dataSourceType), toDataType(dataType));
+
+            return;
         case REQUEST_START_SESSION:
             if (resultCode != Activity.RESULT_OK) { return; }
 
@@ -428,6 +446,40 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         }
         super.onActivityResult(requestCode, resultCode, data);
 
+    }
+
+    private int toDataSourceType(int dataSourceType) {
+        return dataSourceType == 0 ? DataSource.TYPE_RAW : DataSource.TYPE_DERIVED;
+    }
+
+    private DataType toDataType(int dataType) {
+        switch (dataType) {
+        case 0: return DataTypes.ACTIVITY_EDGE;
+        case 1: return DataTypes.ACTIVITY_SAMPLE;
+        case 2: return DataTypes.ACTIVITY_SEGMENT;
+        case 3: return DataTypes.ACTIVITY_SUMMARY;
+        case 4: return DataTypes.CALORIES_EXPENDED;
+        case 5: return DataTypes.CYCLING_PEDALING_CADENCE;
+        case 6: return DataTypes.CYCLING_PEDALING_CUMULATIVE;
+        case 7: return DataTypes.CYCLING_WHEEL_REVOLUTION;
+        case 8: return DataTypes.CYCLING_WHEEL_RPM;
+        case 9: return DataTypes.DISTANCE_CUMULATIVE;
+        case 10: return DataTypes.DISTANCE_DELTA;
+        case 11: return DataTypes.HEART_RATE_BPM;
+        case 12: return DataTypes.HEART_RATE_SUMMARY;
+        case 13: return DataTypes.HEIGHT;
+        case 14: return DataTypes.LOCATION;
+        case 15: return DataTypes.LOCATION_BOUNDING_BOX;
+        case 16: return DataTypes.POWER_SAMPLE;
+        case 17: return DataTypes.SPEED;
+        case 18: return DataTypes.SPEED_SUMMARY;
+        case 19: return DataTypes.STEP_COUNT_CADENCE;
+        case 20: return DataTypes.STEP_COUNT_CUMULATIVE;
+        case 21: return DataTypes.STEP_COUNT_DELTA;
+        case 22: return DataTypes.WEIGHT;
+        case 23: return DataTypes.WEIGHT_SUMMARY;
+        default: return DataTypes.ACTIVITY_EDGE;
+        }
     }
 
     @Override
