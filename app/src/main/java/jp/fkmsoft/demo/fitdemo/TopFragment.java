@@ -303,6 +303,7 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     }
 
     private void subscribe(final DataType dataType) {
+        // This method is an example of synchronous API call.
         new AsyncTask<Void, Void, Status>() {
 
             @Override
@@ -328,21 +329,13 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     }
 
     private void listSubscription(final DataType dataType) {
-        new AsyncTask<Void, Void, ListSubscriptionsResult>() {
+        PendingResult<ListSubscriptionsResult> pendingResult =
+                Fitness.RecordingApi.listSubscriptions(mApiClient, dataType);
 
+        // Check the result asynchronously.
+        pendingResult.setResultCallback(new ResultCallback<ListSubscriptionsResult>() {
             @Override
-            protected ListSubscriptionsResult doInBackground(Void... voids) {
-                PendingResult<ListSubscriptionsResult> pendingResult =
-                        Fitness.RecordingApi.listSubscriptions(mApiClient, dataType);
-
-                // 2. Retrieve the list of subscriptions synchronously
-                // (For the listSubscriptions method, this call returns immediately)
-                return pendingResult.await();
-            }
-
-            @Override
-            protected void onPostExecute(ListSubscriptionsResult listResult) {
-                super.onPostExecute(listResult);
+            public void onResult(ListSubscriptionsResult listResult) {
                 List<Subscription> subscriptions = listResult.getSubscriptions();
                 addMessage("count of subscriptions(" + dataType.getName() + ") : " + subscriptions.size());
                 for (Subscription sc : subscriptions) {
@@ -351,32 +344,24 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
                     addMessage("dataType : " + dt.getName());
                 }
             }
-        }.execute();
+        });
     }
 
     private void unsubscribe(final DataType dataType) {
-        new AsyncTask<Void, Void, Status>() {
+        PendingResult<com.google.android.gms.common.api.Status> pendingResult =
+                Fitness.RecordingApi.unsubscribe(mApiClient, dataType);
 
+        // Check the result asynchronously.
+        pendingResult.setResultCallback(new ResultCallback<Status>() {
             @Override
-            protected com.google.android.gms.common.api.Status doInBackground(Void... voids) {
-                PendingResult<com.google.android.gms.common.api.Status> pendingResult =
-                        Fitness.RecordingApi.unsubscribe(mApiClient, dataType);
-
-                // 2. Retrieve the result of the request synchronously
-                // (For the unsubscribe method, this call returns immediately)
-                return pendingResult.await();
-            }
-
-            @Override
-            protected void onPostExecute(com.google.android.gms.common.api.Status status) {
-                super.onPostExecute(status);
+            public void onResult(Status status) {
                 if (status.isSuccess()) {
                     addMessage("Unsubscribed " + dataType.getName());
                 } else {
                     addMessage("Failed to unsubscribe " + dataType.getName());
                 }
             }
-        }.execute();
+        });
     }
 
     private void showStartSessionDialog() {
@@ -385,40 +370,32 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
     }
 
     private void startSession(final String name, final String identifier, final String description) {
-        new AsyncTask<Void, Void, Status>() {
-
-            @Override
-            protected com.google.android.gms.common.api.Status doInBackground(Void... voids) {
-                // 1. Create a session object
-                // (provide a name, identifier, description and start time)
-                Session session = new Session.Builder()
-                        .setName(name)
-                        .setIdentifier(identifier)
-                        .setDescription(description)
-                        .setStartTimeMillis(1000)
+        // 1. Create a session object
+        // (provide a name, identifier, description and start time)
+        Session session = new Session.Builder()
+                .setName(name)
+                .setIdentifier(identifier)
+                .setDescription(description)
+                .setStartTimeMillis(1000)
                         // optional - if your app knows what activity:
-                        .setActivity(FitnessActivities.RUNNING)
-                        .build();
+                .setActivity(FitnessActivities.RUNNING)
+                .build();
 
-                // 2. Invoke the Recording API with:
-                // - The Google API client object
-                // - The request object
-                PendingResult<com.google.android.gms.common.api.Status> pendingResult =
-                        Fitness.RecordingApi.startSession(mApiClient, session);
+        // 2. Invoke the Recording API
+        PendingResult<com.google.android.gms.common.api.Status> pendingResult =
+                Fitness.RecordingApi.startSession(mApiClient, session);
 
-                return pendingResult.await();
-            }
-
+        // 3. Check the result asynchronously.
+        pendingResult.setResultCallback(new ResultCallback<Status>() {
             @Override
-            protected void onPostExecute(com.google.android.gms.common.api.Status status) {
-                super.onPostExecute(status);
+            public void onResult(Status status) {
                 if (status.isSuccess()) {
                     addMessage("Session is started successfully.");
                 } else {
                     addMessage("Session is not started.");
                 }
             }
-        }.execute();
+        });
     }
 
     private void readData(final DataType dataType) {
@@ -631,7 +608,6 @@ public class TopFragment extends Fragment implements GoogleApiClient.ConnectionC
         super.onDestroyView();
 
         mMessageText = null;
-
     }
 
     // callbacks
